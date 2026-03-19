@@ -44,18 +44,18 @@ export default function DeadlineDisplay() {
 
   if (loadingSettings || loadingData) {
     return (
-      <div className="container">
+      <>
         <div className="center">
           <div className="value">Loading…</div>
         </div>
         <Style />
-      </div>
+      </>
     );
   }
 
   if (!selectedItemId || !dateColumnId) {
     return (
-      <div className="container">
+      <>
         <div className="center">
           <div className="value">—</div>
           <div className="hint">
@@ -63,45 +63,50 @@ export default function DeadlineDisplay() {
           </div>
         </div>
         <Style />
-      </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="container">
+      <>
         <div className="center">
           <div className="value">Error</div>
         </div>
         <Style />
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="container">
+    <>
       <div className="center">
         <div className="value">{displayText || "—"}</div>
       </div>
       <Style />
-    </div>
+    </>
   );
 }
 
+/**
+ * ✅ 關鍵 CSS 都在這裡
+ */
 function Style() {
   return (
     <style>{`
-      /* ✅ 外層：完全不捲動 → 永遠不會出現 scrollbar */
-      .container {
-        position: relative;
+      /* ===== 關鍵：整個 iframe document 都不能捲 ===== */
+      html, body, #root {
         height: 100%;
-        min-height: 140px;
-        overflow: hidden;           /* ✅ 關掉 scroll */
-        padding: 10px;              /* 留白避免貼邊 */
+        margin: 0;
+        padding: 0;
+        overflow: hidden;   /* ✅ 這行就是關鍵 */
+      }
+
+      body {
         font-family: system-ui;
       }
 
-      /* ✅ 中央定位：不受尺寸變化影響 */
+      /* ===== 內容永遠置中 ===== */
       .center {
         position: absolute;
         inset: 0;
@@ -111,22 +116,17 @@ function Style() {
         pointer-events: none;
       }
 
-      /*
-        ✅ 字體自動縮放：
-        - clamp(min, preferred, max)
-        - preferred 用 vw（跟 widget 寬度變動）
-        - 你可以調整中間的 6.5vw 讓它更大/更小
-      */
+      /* ===== 主文字 ===== */
       .value {
-        font-size: clamp(18px, 6.5vw, 36px);  /* ✅ 自動縮放避免溢出 */
-        font-weight: 600;                      /* ✅ 不要太粗 */
+        font-size: clamp(18px, 6.5vw, 36px);
+        font-weight: 600;          /* ✅ 已降粗 */
         letter-spacing: 0.4px;
         line-height: 1.1;
         color: #111;
-        white-space: nowrap;                   /* ✅ 一行顯示，避免換行撐高 */
-        max-width: calc(100% - 20px);          /* ✅ 不讓文字碰到邊 */
+        white-space: nowrap;
+        max-width: calc(100% - 24px);
         overflow: hidden;
-        text-overflow: ellipsis;               /* ✅ 極端狀況用省略號 */
+        text-overflow: ellipsis;
       }
 
       .hint {
@@ -137,8 +137,11 @@ function Style() {
       }
 
       @media (prefers-color-scheme: dark) {
-        .value, .hint { color: #fff; }
+        .value, .hint {
+          color: #ffffff;
+        }
       }
     `}</style>
   );
 }
+``
