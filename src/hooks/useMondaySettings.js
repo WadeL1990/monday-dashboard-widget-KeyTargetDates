@@ -4,48 +4,44 @@ import mondaySdk from "monday-sdk-js";
 const monday = mondaySdk();
 
 /**
- * ⚠️ 若你在 Developer Center 設定的 key/name 不同，只改這裡：
+ * 必須和 Developer Center → Settings fields 的 key 一模一樣
  */
 const SETTINGS_KEYS = {
-  itemId: "itemId",        // Text field key
-  dateColumn: "dateColumn" // Columns field key
+  itemId: "itemId",        // Text field
+  dateColumn: "dateColumn" // Columns field
 };
 
 function parseSettings(raw) {
   const data = raw?.data ?? raw ?? {};
 
-  const itemIdRaw = data?.[SETTINGS_KEYS.itemId];
-  const dateColRaw = data?.[SETTINGS_KEYS.dateColumn];
-
-  // Text 欄位：通常就是字串
+  /**
+   * ✅ Text field 真正的值在 .value
+   */
+  const itemIdObj = data?.[SETTINGS_KEYS.itemId];
   const selectedItemId =
-    itemIdRaw == null || String(itemIdRaw).trim() === ""
-      ? null
-      : String(itemIdRaw).trim();
+    itemIdObj && typeof itemIdObj === "object" && itemIdObj.value
+      ? String(itemIdObj.value).trim()
+      : null;
 
   /**
-   * Columns 欄位：回傳格式可能因平台/欄位而異，所以做容錯：
-   * - "dateColId"
-   * - ["dateColId"]
-   * - { id: "dateColId" }
-   * - { "<boardId>": ["dateColId"] }
+   * ✅ Columns field 的實際結構
+   * 常見格式：
+   * {
+   *   boardId: "123",
+   *   columnId: "date"
+   * }
    */
-  let dateColumnId = null;
-  if (typeof dateColRaw === "string") {
-    dateColumnId = dateColRaw;
-  } else if (Array.isArray(dateColRaw)) {
-    dateColumnId = dateColRaw[0] ? String(dateColRaw[0]) : null;
-  } else if (dateColRaw && typeof dateColRaw === "object") {
-    if (dateColRaw.id) {
-      dateColumnId = String(dateColRaw.id);
-    } else {
-      const firstKey = Object.keys(dateColRaw)[0];
-      const maybeArr = firstKey ? dateColRaw[firstKey] : null;
-      if (Array.isArray(maybeArr) && maybeArr[0]) dateColumnId = String(maybeArr[0]);
-    }
-  }
+  const dateColObj = data?.[SETTINGS_KEYS.dateColumn];
+  const dateColumnId =
+    dateColObj && typeof dateColObj === "object" && dateColObj.columnId
+      ? String(dateColObj.columnId)
+      : null;
 
-  return { selectedItemId, dateColumnId, raw: data };
+  return {
+    selectedItemId,
+    dateColumnId,
+    raw: data
+  };
 }
 
 export function useMondaySettings() {
@@ -53,13 +49,13 @@ export function useMondaySettings() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 初次取得
+    // 初次載入
     monday.get("settings").then((res) => {
       setRawSettings(res);
       setLoading(false);
     });
 
-    // 監聽右側面板變更（官方支援）[2](https://community.make.com/t/updating-connected-column-on-a-sub-item-on-monday-com/37216)
+    // 監聽右側 Settings 面板變更（官方支援）
     const unsubscribe = monday.listen("settings", (res) => {
       setRawSettings(res);
     });
@@ -69,6 +65,9 @@ export function useMondaySettings() {
     };
   }, []);
 
-  const parsed = useMemo(() => parseSettings(rawSettings), [rawSettings]);
-  return { ...parsed, loading };
+  return useMemo(() => {
+    const parsed = parseSettings(rawSettings);
+    return { ...parsed, loading };
+  }, [rawSettings, loading]);
 }
+``
