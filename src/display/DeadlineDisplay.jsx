@@ -1,61 +1,112 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useMondaySettings } from "../hooks/useMondaySettings.js";
 import { useItemDeadline } from "../hooks/useItemDeadline.js";
 
+function tryParseDate(deadlineText) {
+  if (!deadlineText) return null;
+  // deadlineText 通常是 YYYY-MM-DD（但也可能因設定而不同）
+  // 先嘗試 Date() 解析；若失敗你之後可改用 column_values.value 取原始 date
+  const d = new Date(deadlineText);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDate(date, format) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  const monthShort = date.toLocaleString("en-US", { month: "short" });
+
+  switch (format) {
+    case "MDY":
+      return `${mm}-${dd}-${yyyy}`;
+    case "MMM_D_Y":
+      return `${monthShort}-${dd}-${yyyy}`;
+    case "MD":
+      return `${mm}-${dd}`;
+    case "YMD":
+    default:
+      return `${yyyy}-${mm}-${dd}`;
+  }
+}
+
 export default function DeadlineDisplay() {
-  const { selectedItemId, dateColumnId, loading: loadingSettings } = useMondaySettings();
-  const { deadlineText, loading: loadingData, error } = useItemDeadline(selectedItemId, dateColumnId);
+  const { selectedItemId, dateColumnId, dateFormat, loading: loadingSettings } =
+    useMondaySettings();
+
+  const { deadlineText, loading: loadingData, error } = useItemDeadline(
+    selectedItemId,
+    dateColumnId
+  );
+
+  const displayText = useMemo(() => {
+    const d = tryParseDate(deadlineText);
+    if (!d) return deadlineText || "—"; // 若 parse 失敗就原樣顯示，至少不空白
+    return formatDate(d, dateFormat);
+  }, [deadlineText, dateFormat]);
 
   const containerStyle = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
     height: "100%",
     minHeight: 140,
-    padding: 12,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     fontFamily: "system-ui",
-  };
-
-  const bigStyle = {
-    fontSize: 36,
-    fontWeight: 800,
-    letterSpacing: 0.5,
     textAlign: "center",
+    padding: 12,
   };
 
-  if (loadingSettings) return <div style={containerStyle}>Loading…</div>;
+  if (loadingSettings || loadingData) {
+    return <div style={containerStyle}>Loading…</div>;
+  }
 
   if (!selectedItemId || !dateColumnId) {
     return (
       <div style={containerStyle}>
-        <div style={{ textAlign: "center", opacity: 0.85 }}>
-          <div style={bigStyle}>—</div>
-          <div style={{ fontSize: 12, marginTop: 8 }}>
-            Open widget Settings to select item &amp; date column.
-          </div>
+        <div className="value">—</div>
+        <div className="hint">
+          Open widget Settings to select item &amp; date column.
+        </div>
 
-          {/* ✅ Debug：你現在可以看到解析結果 */}
-          <div style={{ fontSize: 12, marginTop: 10 }}>
-            <div>
-              parsed itemId (from settings.text):{" "}
-              <code>{selectedItemId ? selectedItemId : "null"}</code>
-            </div>
-            <div>
-              parsed dateColumnId (from settings.columnsPerBoard):{" "}
-              <code>{dateColumnId ? dateColumnId : "null"}</code>
-            </div>
+        {/* debug：方便你確認 settings 是否進來 */}
+        <div className="debug">
+          <div>
+            itemId (settings.text): <code>{selectedItemId ?? "null"}</code>
+          </div>
+          <div>
+            dateColumnId (columnsPerBoard): <code>{dateColumnId ?? "null"}</code>
+          </div>
+          <div>
+            dateFormat (settings.dropdown): <code>{dateFormat ?? "null"}</code>
           </div>
         </div>
+
+        <style>{`
+          .value { font-size: 36px; font-weight: 800; letter-spacing: .5px; color: #111; }
+          .hint { margin-top: 8px; font-size: 12px; opacity: .7; color: #111; }
+          .debug { margin-top: 10px; font-size: 12px; opacity: .75; color: #111; }
+          @media (prefers-color-scheme: dark) {
+            .value, .hint, .debug { color: #fff; }
+          }
+        `}</style>
       </div>
     );
   }
 
-  if (error) return <div style={containerStyle}>Error: {error}</div>;
-  if (loadingData) return <div style={containerStyle}>Loading deadline…</div>;
+  if (error) {
+    return <div style={containerStyle}>Error: {error}</div>;
+  }
 
   return (
     <div style={containerStyle}>
-      <div style={bigStyle}>{deadlineText || "—"}</div>
+      <div className="value">{displayText || "—"}</div>
+
+      <style>{`
+        .value { font-size: 36px; font-weight: 800; letter-spacing: .5px; color: #111; }
+        @media (prefers-color-scheme: dark) {
+          .value { color: #fff; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -3,24 +3,37 @@ import mondaySdk from "monday-sdk-js";
 
 const monday = mondaySdk();
 
-function normalizeSettingsPayload(res) {
-  // monday.get / monday.listen 回傳通常是 { data: ... }
+/**
+ * 你的 settings schema（你提供的）：
+ * {
+ *   settings: {
+ *     text: "",
+ *     columnsPerBoard: {},
+ *     dropdown: null
+ *   }
+ * }
+ */
+function normalizeSettings(res) {
   const data = res?.data ?? res ?? {};
+  const settings =
+    data?.settings && typeof data.settings === "object" ? data.settings : data;
 
-  // 你在 Developer Center 看到的是 {"settings":{...}}，所以優先取 data.settings
-  const settings = data?.settings && typeof data.settings === "object" ? data.settings : data;
+  const text =
+    typeof settings.text === "string" ? settings.text.trim() : "";
 
-  // Text field：你貼的規格是 settings.text 字串
-  const text = typeof settings.text === "string" ? settings.text.trim() : "";
-
-  // Columns field：你貼的規格是 settings.columnsPerBoard 物件
   const columnsPerBoard =
     settings.columnsPerBoard && typeof settings.columnsPerBoard === "object"
       ? settings.columnsPerBoard
       : {};
 
-  // 從 columnsPerBoard 取出第一個 boardId 的第一個 columnId
-  // （Dashboard 若只連一個 board，這就是你要的）
+  // dropdown：日期格式（你新增的 dropdown 設定欄位）
+  // 若尚未選，預設 YMD
+  const dateFormat =
+    typeof settings.dropdown === "string" && settings.dropdown.trim() !== ""
+      ? settings.dropdown.trim()
+      : "YMD";
+
+  // 從 columnsPerBoard 取第一個 boardId 的第一個 columnId
   let dateColumnId = null;
   const boardIds = Object.keys(columnsPerBoard);
   if (boardIds.length > 0) {
@@ -36,6 +49,7 @@ function normalizeSettingsPayload(res) {
   return {
     selectedItemId,
     dateColumnId,
+    dateFormat,
     settingsRaw: settings,
     columnsPerBoard,
   };
@@ -46,17 +60,17 @@ export function useMondaySettings() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 初次取得 settings
+    // 初次讀取
     monday.get("settings").then((res) => {
       setRaw(res);
       setLoading(false);
 
-      // debug：需要時可在 console 看
+      // debug（可留著，也可之後刪）
       window.__WIDGET_DEBUG__ = window.__WIDGET_DEBUG__ || {};
       window.__WIDGET_DEBUG__.settings_get = res?.data ?? res;
     });
 
-    // 監聽 settings 變更（使用者在右側面板修改會觸發）[1](https://developer.monday.com/apps/docs/mondaylisten)
+    // 監聽 settings 變更（官方支援）[1](https://developer.monday.com/apps/docs/mondaylisten)
     const unsubscribe = monday.listen("settings", (res) => {
       setRaw(res);
 
@@ -70,7 +84,7 @@ export function useMondaySettings() {
   }, []);
 
   return useMemo(() => {
-    const parsed = normalizeSettingsPayload(raw);
+    const parsed = normalizeSettings(raw);
     return { ...parsed, loading };
   }, [raw, loading]);
 }
