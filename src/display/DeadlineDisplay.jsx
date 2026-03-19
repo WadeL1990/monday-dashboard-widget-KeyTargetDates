@@ -118,7 +118,7 @@ function Style() {
         - 你可以調整中間的 6.5vw 讓它更大/更小
       */
       .value {
-        font-size: clamp(18px, 5.8vw, 36px);  /* ✅ 自動縮放避免溢出 */
+        font-size: clamp(18px, 6.5vw, 36px);  /* ✅ 自動縮放避免溢出 */
         font-weight: 600;                      /* ✅ 不要太粗 */
         letter-spacing: 0.4px;
         line-height: 1.1;
