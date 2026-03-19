@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchItemColumnText } from "../api/mondayApi";
+import { fetchItemColumnText } from "../api/mondayApi.js";
 
 export function useItemDeadline(itemId, dateColumnId) {
   const [deadlineText, setDeadlineText] = useState(null);
@@ -11,6 +11,8 @@ export function useItemDeadline(itemId, dateColumnId) {
 
     if (!itemId || !dateColumnId) {
       setDeadlineText(null);
+      setLoading(false);
+      setError(null);
       return;
     }
 
