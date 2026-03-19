@@ -4,8 +4,6 @@ import { useItemDeadline } from "../hooks/useItemDeadline.js";
 
 function tryParseDate(deadlineText) {
   if (!deadlineText) return null;
-  // deadlineText 通常是 YYYY-MM-DD（但也可能因設定而不同）
-  // 先嘗試 Date() 解析；若失敗你之後可改用 column_values.value 取原始 date
   const d = new Date(deadlineText);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -40,73 +38,121 @@ export default function DeadlineDisplay() {
 
   const displayText = useMemo(() => {
     const d = tryParseDate(deadlineText);
-    if (!d) return deadlineText || "—"; // 若 parse 失敗就原樣顯示，至少不空白
+    if (!d) return deadlineText || "—";
     return formatDate(d, dateFormat);
   }, [deadlineText, dateFormat]);
 
-  const containerStyle = {
-    height: "100%",
-    minHeight: 140,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily: "system-ui",
-    textAlign: "center",
-    padding: 12,
-  };
-
   if (loadingSettings || loadingData) {
-    return <div style={containerStyle}>Loading…</div>;
+    return <div className="container">Loading…</div>;
   }
 
   if (!selectedItemId || !dateColumnId) {
     return (
-      <div style={containerStyle}>
-        <div className="value">—</div>
-        <div className="hint">
-          Open widget Settings to select item &amp; date column.
-        </div>
-
-        {/* debug：方便你確認 settings 是否進來 */}
-        <div className="debug">
-          <div>
-            itemId (settings.text): <code>{selectedItemId ?? "null"}</code>
-          </div>
-          <div>
-            dateColumnId (columnsPerBoard): <code>{dateColumnId ?? "null"}</code>
-          </div>
-          <div>
-            dateFormat (settings.dropdown): <code>{dateFormat ?? "null"}</code>
+      <div className="container">
+        <div className="center">
+          <div className="value">—</div>
+          <div className="hint">
+            Open widget Settings to select item &amp; date column.
           </div>
         </div>
-
-        <style>{`
-          .value { font-size: 36px; font-weight: 800; letter-spacing: .5px; color: #111; }
-          .hint { margin-top: 8px; font-size: 12px; opacity: .7; color: #111; }
-          .debug { margin-top: 10px; font-size: 12px; opacity: .75; color: #111; }
-          @media (prefers-color-scheme: dark) {
-            .value, .hint, .debug { color: #fff; }
-          }
-        `}</style>
+        <Style />
       </div>
     );
   }
 
   if (error) {
-    return <div style={containerStyle}>Error: {error}</div>;
+    return <div className="container">Error</div>;
   }
 
   return (
-    <div style={containerStyle}>
-      <div className="value">{displayText || "—"}</div>
-
-      <style>{`
-        .value { font-size: 36px; font-weight: 800; letter-spacing: .5px; color: #111; }
-        @media (prefers-color-scheme: dark) {
-          .value { color: #fff; }
-        }
-      `}</style>
+    <div className="container">
+      <div className="center">
+        <div className="value">{displayText || "—"}</div>
+      </div>
+      <Style />
     </div>
+  );
+}
+
+/**
+ * 把 CSS 抽成元件，避免 JSX 太亂
+ */
+function Style() {
+  return (
+    <style>{`
+      /* ===== 外層：負責 scroll，不負責置中 ===== */
+      .container {
+        position: relative;
+        height: 100%;
+        min-height: 140px;
+        overflow: auto;
+        font-family: system-ui;
+      }
+
+      /* ===== 內層：永遠視覺正中央 ===== */
+      .center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        pointer-events: none; /* 防止誤點 */
+      }
+
+      /* ===== 主數字樣式 ===== */
+      .value {
+        font-size: 36px;
+        font-weight: 600; /* ✅ 不再那麼粗 */
+        letter-spacing: 0.4px;
+        color: #111;
+        white-space: nowrap;
+      }
+
+      .hint {
+        margin-top: 8px;
+        font-size: 12px;
+        opacity: 0.7;
+        color: #111;
+      }
+
+      /* ===== 深色模式 ===== */
+      @media (prefers-color-scheme: dark) {
+        .value,
+        .hint {
+          color: #ffffff;
+        }
+      }
+
+      /* ===== Scrollbar：細 + 灰 + 低存在感 ===== */
+
+      /* Chrome / Edge / Safari */
+      .container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      .container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .container::-webkit-scrollbar-thumb {
+        background-color: rgba(120, 120, 120, 0.25);
+        border-radius: 6px;
+      }
+
+      .container:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(120, 120, 120, 0.45);
+      }
+
+      /* Firefox */
+      .container {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(120, 120, 120, 0.35) transparent;
+      }
+
+      .container:hover {
+        scrollbar-color: rgba(120, 120, 120, 0.55) transparent;
+      }
+    `}</style>
   );
 }
