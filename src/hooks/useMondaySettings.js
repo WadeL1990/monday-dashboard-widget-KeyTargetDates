@@ -3,61 +3,65 @@ import mondaySdk from "monday-sdk-js";
 
 const monday = mondaySdk();
 
-/**
- * 必須和 Developer Center → Settings fields 的 key 一模一樣
- */
-const SETTINGS_KEYS = {
-  itemId: "itemId",        // Text field
-  dateColumn: "dateColumn" // Columns field
-};
+function normalizeSettingsPayload(res) {
+  // monday.get / monday.listen 回傳通常是 { data: ... }
+  const data = res?.data ?? res ?? {};
 
-function parseSettings(raw) {
-  const data = raw?.data ?? raw ?? {};
+  // 你在 Developer Center 看到的是 {"settings":{...}}，所以優先取 data.settings
+  const settings = data?.settings && typeof data.settings === "object" ? data.settings : data;
 
-  /**
-   * ✅ Text field 真正的值在 .value
-   */
-  const itemIdObj = data?.[SETTINGS_KEYS.itemId];
-  const selectedItemId =
-    itemIdObj && typeof itemIdObj === "object" && itemIdObj.value
-      ? String(itemIdObj.value).trim()
-      : null;
+  // Text field：你貼的規格是 settings.text 字串
+  const text = typeof settings.text === "string" ? settings.text.trim() : "";
 
-  /**
-   * ✅ Columns field 的實際結構
-   * 常見格式：
-   * {
-   *   boardId: "123",
-   *   columnId: "date"
-   * }
-   */
-  const dateColObj = data?.[SETTINGS_KEYS.dateColumn];
-  const dateColumnId =
-    dateColObj && typeof dateColObj === "object" && dateColObj.columnId
-      ? String(dateColObj.columnId)
-      : null;
+  // Columns field：你貼的規格是 settings.columnsPerBoard 物件
+  const columnsPerBoard =
+    settings.columnsPerBoard && typeof settings.columnsPerBoard === "object"
+      ? settings.columnsPerBoard
+      : {};
+
+  // 從 columnsPerBoard 取出第一個 boardId 的第一個 columnId
+  // （Dashboard 若只連一個 board，這就是你要的）
+  let dateColumnId = null;
+  const boardIds = Object.keys(columnsPerBoard);
+  if (boardIds.length > 0) {
+    const firstBoardId = boardIds[0];
+    const cols = columnsPerBoard[firstBoardId];
+    if (Array.isArray(cols) && cols.length > 0) {
+      dateColumnId = String(cols[0]);
+    }
+  }
+
+  const selectedItemId = text !== "" ? text : null;
 
   return {
     selectedItemId,
     dateColumnId,
-    raw: data
+    settingsRaw: settings,
+    columnsPerBoard,
   };
 }
 
 export function useMondaySettings() {
-  const [rawSettings, setRawSettings] = useState(null);
+  const [raw, setRaw] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 初次載入
+    // 初次取得 settings
     monday.get("settings").then((res) => {
-      setRawSettings(res);
+      setRaw(res);
       setLoading(false);
+
+      // debug：需要時可在 console 看
+      window.__WIDGET_DEBUG__ = window.__WIDGET_DEBUG__ || {};
+      window.__WIDGET_DEBUG__.settings_get = res?.data ?? res;
     });
 
-    // 監聽右側 Settings 面板變更（官方支援）
+    // 監聽 settings 變更（使用者在右側面板修改會觸發）[1](https://developer.monday.com/apps/docs/mondaylisten)
     const unsubscribe = monday.listen("settings", (res) => {
-      setRawSettings(res);
+      setRaw(res);
+
+      window.__WIDGET_DEBUG__ = window.__WIDGET_DEBUG__ || {};
+      window.__WIDGET_DEBUG__.settings_listen = res?.data ?? res;
     });
 
     return () => {
@@ -66,8 +70,7 @@ export function useMondaySettings() {
   }, []);
 
   return useMemo(() => {
-    const parsed = parseSettings(rawSettings);
+    const parsed = normalizeSettingsPayload(raw);
     return { ...parsed, loading };
-  }, [rawSettings, loading]);
+  }, [raw, loading]);
 }
-``
