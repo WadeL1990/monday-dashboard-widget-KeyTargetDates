@@ -9,27 +9,22 @@ export function useMondayContext() {
   const [boardId, setBoardId] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
+    // ✅ 先抓一次初始 context
+    monday.get("context").then((res) => {
+      const ctx = res.data ?? res;
+      setIsSettings(ctx?.mode === "settings");
+      setBoardId(ctx?.boardId ?? null);
+      setLoading(false);
+    });
 
-    monday
-      .get("context")
-      .then((res) => {
-        const ctx = res?.data ?? res;
-        if (!mounted) return;
-
-        setIsSettings(ctx?.mode === "settings");
-        // Dashboard widget context 常見會有 boardId 或 boardIds（依你的環境而定）
-        const bid = ctx?.boardId ?? (Array.isArray(ctx?.boardIds) ? ctx.boardIds[0] : null);
-        setBoardId(bid ? Number(bid) : null);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
+    // ✅ 關鍵：監聽 mode 切換
+    monday.listen("context", (res) => {
+      const ctx = res.data ?? res;
+      setIsSettings(ctx?.mode === "settings");
+      setBoardId(ctx?.boardId ?? null);
+    });
   }, []);
 
   return { loading, isSettings, boardId };
 }
+``
