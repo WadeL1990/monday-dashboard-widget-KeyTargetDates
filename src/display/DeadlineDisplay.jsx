@@ -43,7 +43,14 @@ export default function DeadlineDisplay() {
   }, [deadlineText, dateFormat]);
 
   if (loadingSettings || loadingData) {
-    return <div className="container">Loading…</div>;
+    return (
+      <div className="container">
+        <div className="center">
+          <div className="value">Loading…</div>
+        </div>
+        <Style />
+      </div>
+    );
   }
 
   if (!selectedItemId || !dateColumnId) {
@@ -61,7 +68,14 @@ export default function DeadlineDisplay() {
   }
 
   if (error) {
-    return <div className="container">Error</div>;
+    return (
+      <div className="container">
+        <div className="center">
+          <div className="value">Error</div>
+        </div>
+        <Style />
+      </div>
+    );
   }
 
   return (
@@ -74,38 +88,45 @@ export default function DeadlineDisplay() {
   );
 }
 
-/**
- * 把 CSS 抽成元件，避免 JSX 太亂
- */
 function Style() {
   return (
     <style>{`
-      /* ===== 外層：負責 scroll，不負責置中 ===== */
+      /* ✅ 外層：完全不捲動 → 永遠不會出現 scrollbar */
       .container {
         position: relative;
         height: 100%;
         min-height: 140px;
-        overflow: auto;
+        overflow: hidden;           /* ✅ 關掉 scroll */
+        padding: 10px;              /* 留白避免貼邊 */
         font-family: system-ui;
       }
 
-      /* ===== 內層：永遠視覺正中央 ===== */
+      /* ✅ 中央定位：不受尺寸變化影響 */
       .center {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        inset: 0;
+        display: grid;
+        place-items: center;
         text-align: center;
-        pointer-events: none; /* 防止誤點 */
+        pointer-events: none;
       }
 
-      /* ===== 主數字樣式 ===== */
+      /*
+        ✅ 字體自動縮放：
+        - clamp(min, preferred, max)
+        - preferred 用 vw（跟 widget 寬度變動）
+        - 你可以調整中間的 6.5vw 讓它更大/更小
+      */
       .value {
-        font-size: 36px;
-        font-weight: 600; /* ✅ 不再那麼粗 */
+        font-size: clamp(18px, 5.8vw, 36px);  /* ✅ 自動縮放避免溢出 */
+        font-weight: 600;                      /* ✅ 不要太粗 */
         letter-spacing: 0.4px;
+        line-height: 1.1;
         color: #111;
-        white-space: nowrap;
+        white-space: nowrap;                   /* ✅ 一行顯示，避免換行撐高 */
+        max-width: calc(100% - 20px);          /* ✅ 不讓文字碰到邊 */
+        overflow: hidden;
+        text-overflow: ellipsis;               /* ✅ 極端狀況用省略號 */
       }
 
       .hint {
@@ -115,43 +136,8 @@ function Style() {
         color: #111;
       }
 
-      /* ===== 深色模式 ===== */
       @media (prefers-color-scheme: dark) {
-        .value,
-        .hint {
-          color: #ffffff;
-        }
-      }
-
-      /* ===== Scrollbar：細 + 灰 + 低存在感 ===== */
-
-      /* Chrome / Edge / Safari */
-      .container::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-
-      .container::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      .container::-webkit-scrollbar-thumb {
-        background-color: rgba(120, 120, 120, 0.25);
-        border-radius: 6px;
-      }
-
-      .container:hover::-webkit-scrollbar-thumb {
-        background-color: rgba(120, 120, 120, 0.45);
-      }
-
-      /* Firefox */
-      .container {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(120, 120, 120, 0.35) transparent;
-      }
-
-      .container:hover {
-        scrollbar-color: rgba(120, 120, 120, 0.55) transparent;
+        .value, .hint { color: #fff; }
       }
     `}</style>
   );
